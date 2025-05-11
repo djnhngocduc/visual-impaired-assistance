@@ -55,12 +55,11 @@ class _CameraViewState extends State<CameraView> {
   double confidenceLevel = 0;
 
   CameraImage? _latestImage;
-  final ApiService _api = ApiService();
+  final OpenRouterService _openRouter = OpenRouterService(globals.openRouterApiKey);
 
   @override
   void initState() {
     super.initState();
-
     _initialize();
     // initSpeech();
   }
@@ -523,11 +522,23 @@ class _CameraViewState extends State<CameraView> {
     );
   }
 
+  Future<Uint8List> _compressImage(Uint8List input) async {
+    // Decode ảnh
+    final original = img.decodeImage(input);
+    if (original == null) return input;
+
+    // Resize xuống width = 224 giữ tỉ lệ
+    final resized = img.copyResize(original, width: 224);
+
+    // Encode lại JPEG với quality thấp, ví dụ 50%
+    return Uint8List.fromList(img.encodeJpg(resized, quality: 50));
+  }
+
   Future<void> _sendPromptWithFrame(String prompt) async {
     if (_latestImage == null) return;
     try {
-      final bytes = _cameraImageToJpeg(_latestImage!);
-      final reply = await _api.sendPrompt(prompt: prompt, imageBytes: bytes);
+      final Uint8List jpeg = _cameraImageToJpeg(_latestImage!);
+      final reply = await _openRouter.sendPrompt(prompt: prompt, jpegBytes: jpeg);
       await speak(reply);
     } on DioException catch (d) {
       log('Dio error → ${d.type} | ${d.response?.statusCode}');
