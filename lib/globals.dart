@@ -1,4 +1,4 @@
 library globals;
 
-const String openRouterApiKey = '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';
+const String openRouterApiKey = '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';
 String targetSearch = "";

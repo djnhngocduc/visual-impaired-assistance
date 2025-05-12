@@ -30,12 +30,12 @@ class ObjectDetectorPainter extends CustomPainter {
     // );
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    // super.dispose();
-  }
-
+  // @override
+  // void dispose() {
+  //   _timer?.cancel();
+  //   // super.dispose();
+  // }
+  //
   // void stopSpeaking() {
   //   isSpeaking = false;
   //   dispose();

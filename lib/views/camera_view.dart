@@ -118,7 +118,7 @@ class _CameraViewState extends State<CameraView> {
 
   void extractTargetObject(String spokenText) {
     String tmpText = spokenText.toLowerCase();
-    String cleanedText = tmpText.replaceAll("tìm", "").trim();
+    String cleanedText = tmpText.replaceAll("whereis", "").trim();
     List<String> words = cleanedText.split(" ");
     setState(() {
       globals.targetSearch = words.join("");
