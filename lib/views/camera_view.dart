@@ -153,8 +153,8 @@ class _CameraViewState extends State<CameraView> {
         children: <Widget>[
           Center(
             child: _changingCameraLens
-                ? Center(
-              child: const Text('Changing camera lens'),
+                ? const Center(
+              child: Text('Changing camera lens'),
             )
                 : CameraPreview(
               _controller!,
@@ -254,7 +254,7 @@ class _CameraViewState extends State<CameraView> {
               _speechToText.isListening ? "Listening..." : _speechEnabled
                   ? "Tap the microphone to start listening..."
                   : "Speech not available",
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16.0,
               ),
@@ -262,7 +262,7 @@ class _CameraViewState extends State<CameraView> {
             // if (confidenceLevel > 0 && _speechToText.isNotListening)
             Text(
               globals.targetSearch,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 10.0,
               ),
@@ -333,7 +333,7 @@ class _CameraViewState extends State<CameraView> {
                     child: Center(
                       child: Text(
                         '${_currentZoomLevel.toStringAsFixed(1)}x',
-                        style: TextStyle(color: Colors.white),
+                        style: const TextStyle(color: Colors.white),
                       ),
                     ),
                   ),
@@ -402,7 +402,7 @@ class _CameraViewState extends State<CameraView> {
       ResolutionPreset.high,
       enableAudio: false,
       imageFormatGroup: Platform.isAndroid
-          ? ImageFormatGroup.yuv420
+          ? ImageFormatGroup.nv21
           : ImageFormatGroup.bgra8888,
     );
     _controller?.initialize().then((_) {
@@ -507,7 +507,7 @@ class _CameraViewState extends State<CameraView> {
         (Platform.isIOS && format != InputImageFormat.bgra8888)) return null;
 
     // since format is constraint to nv21 or bgra8888, both only have one plane
-    // if (image.planes.length != 1) return null;
+    if (image.planes.length != 1) return null;
     final plane = image.planes.first;
 
     // compose InputImage using bytes
@@ -520,18 +520,6 @@ class _CameraViewState extends State<CameraView> {
         bytesPerRow: plane.bytesPerRow, // used only in iOS
       ),
     );
-  }
-
-  Future<Uint8List> _compressImage(Uint8List input) async {
-    // Decode ảnh
-    final original = img.decodeImage(input);
-    if (original == null) return input;
-
-    // Resize xuống width = 224 giữ tỉ lệ
-    final resized = img.copyResize(original, width: 224);
-
-    // Encode lại JPEG với quality thấp, ví dụ 50%
-    return Uint8List.fromList(img.encodeJpg(resized, quality: 50));
   }
 
   Future<void> _sendPromptWithFrame(String prompt) async {
@@ -555,7 +543,7 @@ class _CameraViewState extends State<CameraView> {
   Uint8List _cameraImageToJpeg(CameraImage imgCam) =>
       imgCam.format.group == ImageFormatGroup.bgra8888
           ? _convertBGRA8888(imgCam)
-          : _convertYUV420(imgCam);
+          : _convertNV21(imgCam);
 
   Uint8List _convertBGRA8888(CameraImage imgCam) {
     final w = imgCam.width,
@@ -575,52 +563,36 @@ class _CameraViewState extends State<CameraView> {
     return Uint8List.fromList(img.encodeJpg(rgb, quality: 90));
   }
 
-  Uint8List _convertYUV420(CameraImage camImg) {
-    final int w = camImg.width;
-    final int h = camImg.height;
+  Uint8List _convertNV21(CameraImage camImg) {
+    final int width = camImg.width;
+    final int height = camImg.height;
+    final Uint8List nv21 = camImg.planes[0].bytes;
+    final img.Image rgbImage = img.Image(width: width, height: height);
 
-    final Plane pY = camImg.planes[0];
-    final Plane pU = camImg.planes[1];
-    final Plane pV = camImg.planes[2];
+    final int frameSize = width * height;
+    for (int y = 0; y < height; y++) {
+      final int uvRowStart = frameSize + (y >> 1) * width;
+      for (int x = 0; x < width; x++) {
+        final int yIndex = y * width + x;
+        // trong NV21, V và U xen kẽ: V at even, U at odd
+        final int vIndex = uvRowStart + (x & ~1);
+        final int uIndex = vIndex + 1;
 
-    final int strideY  = pY.bytesPerRow;
-    final int strideU  = pU.bytesPerRow;
-    final int strideV  = pV.bytesPerRow;
+        final int Y = nv21[yIndex] & 0xFF;
+        final int V = nv21[vIndex] & 0xFF;
+        final int U = nv21[uIndex] & 0xFF;
 
-    final int pixStrideU = pU.bytesPerPixel ?? 1;   // 1 hoặc 2
-    final int pixStrideV = pV.bytesPerPixel ?? 1;
+        // Công thức chuyển YUV ➔ RGB
+        int r = (Y + 1.370705 * (V - 128)).round().clamp(0, 255);
+        int g = (Y - 0.698001 * (V - 128) - 0.337633 * (U - 128)).round().clamp(0, 255);
+        int b = (Y + 1.732446 * (U - 128)).round().clamp(0, 255);
 
-    final img.Image rgb = img.Image(width: w, height: h);
-
-    for (int y = 0; y < h; y++) {
-      final int rowY = y * strideY;
-      final int rowUV = (y >> 1);
-
-      for (int x = 0; x < w; x++) {
-        final safeX = x < strideY ? x : strideY - 1;
-        final int yIdx = rowY + safeX;
-        final int uvCol = (x >> 1);
-
-        int uIdx = rowUV * strideU + uvCol * pixStrideU;
-        int vIdx = rowUV * strideV + uvCol * pixStrideV;
-
-        // Clamp để an toàn
-        if (uIdx >= pU.bytes.length) uIdx = pU.bytes.length - 1;
-        if (vIdx >= pV.bytes.length) vIdx = pV.bytes.length - 1;
-
-        final int yVal = pY.bytes[yIdx] & 0xff;
-        final int uVal = pU.bytes[uIdx] & 0xff;
-        final int vVal = pV.bytes[vIdx] & 0xff;
-
-        int r = (yVal + 1.370705 * (vVal - 128)).round().clamp(0, 255);
-        int g = (yVal - 0.337633 * (uVal - 128) - 0.698001 * (vVal - 128))
-            .round().clamp(0, 255);
-        int b = (yVal + 1.732446 * (uVal - 128)).round().clamp(0, 255);
-
-        rgb.setPixelRgb(x, y, r, g, b);
+        rgbImage.setPixelRgb(x, y, r, g, b);
       }
     }
-    return Uint8List.fromList(img.encodeJpg(rgb, quality: 80));
+
+    // Encode lại thành JPEG
+    return Uint8List.fromList(img.encodeJpg(rgbImage, quality: 90));
   }
 }
 

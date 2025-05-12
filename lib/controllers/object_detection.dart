@@ -2,8 +2,8 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
 
+import '../views/object_detector_painter.dart';
 import '/views/detector_view.dart';
-import '/views/object_detector_painter.dart';
 import 'utils.dart';
 
 class ObjectDetectorView extends StatefulWidget {
@@ -13,13 +13,13 @@ class ObjectDetectorView extends StatefulWidget {
 
 class _ObjectDetectorView extends State<ObjectDetectorView> {
   ObjectDetector? _objectDetector;
-  DetectionMode _mode = DetectionMode.stream;
+  final DetectionMode _mode = DetectionMode.stream;
   bool _canProcess = false;
   bool _isBusy = false;
   CustomPaint? _customPaint;
   String? _text;
   var _cameraLensDirection = CameraLensDirection.back;
-  int _option = 1;
+  final int _option = 1;
   final _options = {
     'default': '',
     'object_custom': 'object_labeler.tflite',
@@ -111,13 +111,13 @@ class _ObjectDetectorView extends State<ObjectDetectorView> {
     final objects = await _objectDetector!.processImage(inputImage);
     if (inputImage.metadata?.size != null &&
         inputImage.metadata?.rotation != null) {
-      // final painter = ObjectDetectorPainter(
-      //   objects,
-      //   inputImage.metadata!.size,
-      //   inputImage.metadata!.rotation,
-      //   _cameraLensDirection,
-      // );
-      // _customPaint = CustomPaint(painter: painter);
+      final painter = ObjectDetectorPainter(
+        objects,
+        inputImage.metadata!.size,
+        inputImage.metadata!.rotation,
+        _cameraLensDirection,
+      );
+      _customPaint = CustomPaint(painter: painter);
     } else {
       String text = 'Objects found: ${objects.length}\n\n';
       for (final object in objects) {
