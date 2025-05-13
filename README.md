@@ -9,6 +9,5 @@ There are 2 commands to use the app:
 - **"Find + obj_name"**
 
 You can download the .APK file here:  
-https://drive.google.com/file/d/1PXaWFMtOc9-6oTAm_vL-iwO-AwUtKINu/view?usp=sharing
+https://drive.google.com/file/d/1T7s4_PreRq-JTIkGsRyHpHBQHC0svMnW/view?usp=sharing
 
-# visual-impaired-assistance
